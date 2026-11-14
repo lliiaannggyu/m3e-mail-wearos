@@ -33,8 +33,15 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
+            // R8 压缩（shrink）+ 混淆（obfuscate）+ 资源收缩
+            isMinifyEnabled = true
+            isShrinkResources = true
+            // Flutter Gradle 插件会在开启 minify 时自动追加：
+            //   - proguard-android-optimize.txt
+            //   - Flutter 自带的 flutter_proguard_rules.pro
+            //   - 本目录下的 proguard-rules.pro
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // TODO: 换成正式签名配置；演示包先用 debug 签名
             signingConfig = signingConfigs.getByName("debug")
         }
     }
