@@ -22,12 +22,13 @@ class WatchInsets {
   static double vertical(BuildContext context) => isRound(context) ? 14 : 8;
 }
 
-/// 手表页面的统一容器：深色 surface 背景 + 圆屏安全边距。
+/// 手表页面统一容器：深色 surface 背景 + 圆屏安全边距 + 右滑返回。
 class WatchScreen extends StatelessWidget {
   const WatchScreen({
     super.key,
     required this.child,
     this.fab,
+    this.enableSwipeBack = true,
   });
 
   final Widget child;
@@ -35,10 +36,13 @@ class WatchScreen extends StatelessWidget {
   /// 右下角悬浮操作按钮（如「写邮件」）。
   final Widget? fab;
 
+  /// 启用 Wear OS 惯例的右滑返回手势。
+  final bool enableSwipeBack;
+
   @override
   Widget build(BuildContext context) {
     final M3EThemeData theme = M3ETheme.of(context);
-    return Scaffold(
+    Widget body = Scaffold(
       backgroundColor: theme.colorScheme.surface,
       body: Stack(
         children: [
@@ -60,7 +64,41 @@ class WatchScreen extends StatelessWidget {
         ],
       ),
     );
+    if (enableSwipeBack) {
+      body = SwipeBackGesture(child: body);
+    }
+    return body;
   }
+}
+
+/// Wear OS 手势导航：从左边缘向右滑动返回上一页。
+/// 这是手表上最常用的返回方式（表冠按钮之外的系统惯例）。
+class SwipeBackGesture extends StatelessWidget {
+  const SwipeBackGesture({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      // 只在屏幕左边缘起手，避免误触列表横滑操作
+      behavior: HitTestBehavior.translucent,
+      onHorizontalDragStart: (DragStartDetails d) =>
+          _startX ??= d.globalPosition.dx,
+      onHorizontalDragEnd: (DragEndDetails d) {
+        final dx = (d.primaryVelocity ?? 0);
+        if (_startX != null &&
+            _startX! < MediaQuery.sizeOf(context).width * 0.3 &&
+            dx > 600) {
+          if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+        }
+        _startX = null;
+      },
+      child: child,
+    );
+  }
+
+  static double? _startX;
 }
 
 /// 发件人头像：取名字首字符，按名字散列配色。

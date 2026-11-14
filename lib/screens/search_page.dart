@@ -1,16 +1,15 @@
 import 'package:material_3_expressive/material_3_expressive.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../data/mock_mailbox.dart';
+import '../mail/mail_service.dart';
 import '../models/email.dart';
 import '../widgets/watch_layout.dart';
+import '../widgets/watch_mail_row.dart';
 import 'email_detail_page.dart';
 
-/// 搜索页：实时过滤收件箱中的邮件。
+/// 搜索页：实时过滤当前收件箱，右滑返回。
 class SearchPage extends StatefulWidget {
-  const SearchPage({super.key, required this.store});
-
-  final MailStore store;
+  const SearchPage({super.key});
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -27,7 +26,7 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   void _onChanged(String value) {
-    setState(() => _results = widget.store.search(value));
+    setState(() => _results = MailService.instance.search(value));
   }
 
   @override
@@ -38,7 +37,7 @@ class _SearchPageState extends State<SearchPage> {
         children: <Widget>[
           M3ESearchBar(
             controller: _controller,
-            hintText: '搜索发件人 / 主题 / 正文',
+            hintText: '搜索发件人 / 主题',
             onChanged: _onChanged,
             onSubmitted: _onChanged,
             trailing: _controller.text.isEmpty
@@ -60,9 +59,7 @@ class _SearchPageState extends State<SearchPage> {
             child: _results.isEmpty
                 ? Center(
                     child: Text(
-                      _controller.text.isEmpty
-                          ? '输入关键字开始搜索'
-                          : '没有匹配的邮件',
+                      _controller.text.isEmpty ? '输入关键字搜索' : '没有匹配的邮件',
                       style: TextStyle(
                           fontSize: 13,
                           color: theme.colorScheme.onSurfaceVariant),
@@ -73,24 +70,21 @@ class _SearchPageState extends State<SearchPage> {
                     itemCount: _results.length,
                     itemBuilder: (BuildContext context, int index) {
                       final Email email = _results[index];
-                      return M3EListItem(
-                        headline: email.sender,
-                        supportingText: email.subject,
-                        trailingText: email.timeLabel,
-                        leading:
-                            MailAvatar(name: email.sender, unread: email.unread),
+                      return WatchMailRow(
+                        email: email,
                         onTap: () {
                           if (email.unread) {
-                            widget.store.markRead(email.id);
+                            MailService.instance.markRead(email.id);
                           }
-                          Navigator.of(context)
-                              .push(MaterialPageRoute<void>(
-                            builder: (_) => EmailDetailPage(
-                              store: widget.store,
-                              emailId: email.id,
-                            ),
+                          Navigator.of(context).push(MaterialPageRoute<void>(
+                            builder: (_) =>
+                                EmailDetailPage(emailId: email.id),
                           ));
                         },
+                        onToggleStar: () =>
+                            MailService.instance.toggleStar(email.id),
+                        onArchive: () =>
+                            MailService.instance.archive(email.id),
                       );
                     },
                   ),
