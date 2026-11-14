@@ -21,7 +21,8 @@ android {
         applicationId = "com.workbuddy.m3e_mail"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // 应用最低支持 Android 7.1（API 25），覆盖 Wear OS 2.0 及以上
+        minSdk = 25
         targetSdk = flutter.targetSdkVersion
         // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
         // is added automatically by Flutter. (https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions)
@@ -29,6 +30,14 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+    }
+
+    // 压缩打包 so 库：进一步缩小 APK 下载体积
+    // 代价：安装后原生库需解压，安装占用略增（约 12MB）；运行性能无差异
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
 
     buildTypes {
