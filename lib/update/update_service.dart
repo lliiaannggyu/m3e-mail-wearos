@@ -22,6 +22,14 @@ class UpdateService {
   static const String _repoApi =
       'https://api.github.com/repos/lliiaannggyu/m3e-mail-wearos/releases/latest';
 
+  /// 备用版本源：仓库里的静态文件，走 raw 域名，不受 GitHub API 每小时限流。
+  /// GitHub API 匿名请求同一出口 IP 每小时仅 60 次，手表连公共 WiFi 容易撞限流。
+  static const String _versionJson =
+      'https://raw.githubusercontent.com/lliiaannggyu/m3e-mail-wearos/main/version.json';
+
+  /// GitHub API 要求显式 User-Agent，缺失会被直接拒绝。
+  static const String _userAgent = 'M3EMail-WearOS/1.2.0';
+
   /// 手表真机以 arm64 为主，优先下载 arm64 分包。
   static const String _archPattern = 'arm64';
 
@@ -45,36 +53,26 @@ class UpdateService {
   }
 
   /// 检查最新版本。结果通过 [state] 与返回值同时给出。
+  ///
+  /// 主源为 GitHub Release API；若被限流（403）或网络失败，
+  /// 自动回退到仓库内静态 version.json，保证手表在公共网络下也能更新。
   Future<UpdateState> check() async {
     await _versionReady; // 确保 currentVersion 已就绪再比较
     state.value = const UpdateState.checking();
     try {
-      final HttpClientRequest req =
-          await HttpClient().getUrl(Uri.parse(_repoApi));
-      req.headers.set(HttpHeaders.acceptHeader, 'application/vnd.github+json');
-      final HttpClientResponse res = await req.close().timeout(
-            const Duration(seconds: 15),
-          );
-      if (res.statusCode != 200) {
-        throw Exception('GitHub 响应 ${res.statusCode}');
+      Map<String, dynamic> body;
+      try {
+        body = await _fetchJson(_repoApi, accept: 'application/vnd.github+json');
+        _applyApi(body);
+      } catch (apiError) {
+        // 限流/网络异常/无 arm64 包 → 回退静态版本文件
+        body = await _fetchJson(_versionJson);
+        _applyManifest(body);
       }
-      final Map<String, dynamic> body =
-          jsonDecode(await res.transform(utf8.decoder).join())
-              as Map<String, dynamic>;
-      latestVersion = (body['tag_name'] as String?)?.replaceFirst('v', '');
-      final List<dynamic> assets = body['assets'] as List<dynamic>? ?? <dynamic>[];
-      for (final a in assets) {
-        final name = (a['name'] as String).toLowerCase();
-        if (name.endsWith('.apk') && name.contains(_archPattern)) {
-          apkUrl = a['browser_download_url'] as String;
-          apkSize = a['size'] as int? ?? 0;
-          break;
-        }
+      if (apkUrl == null || latestVersion == null) {
+        throw Exception('未找到 arm64 安装包');
       }
-      if (apkUrl == null) {
-        throw Exception('Release 中没有 arm64 APK');
-      }
-      final bool newer = isNewer(latestVersion ?? '', currentVersion ?? '');
+      final bool newer = isNewer(latestVersion!, currentVersion ?? '');
       final UpdateState r = newer
           ? UpdateState.available(latestVersion!, apkSize)
           : const UpdateState.upToDate();
@@ -85,6 +83,44 @@ class UpdateService {
       state.value = r;
       return r;
     }
+  }
+
+  /// 带 User-Agent 的 JSON GET，非 200 抛异常。
+  Future<Map<String, dynamic>> _fetchJson(String url, {String? accept}) async {
+    final HttpClientRequest req = await HttpClient().getUrl(Uri.parse(url));
+    req.headers.set(HttpHeaders.userAgentHeader, _userAgent);
+    if (accept != null) req.headers.set(HttpHeaders.acceptHeader, accept);
+    final HttpClientResponse res =
+        await req.close().timeout(const Duration(seconds: 15));
+    if (res.statusCode != 200) {
+      throw Exception('响应 ${res.statusCode}');
+    }
+    return jsonDecode(await res.transform(utf8.decoder).join())
+        as Map<String, dynamic>;
+  }
+
+  /// 解析 GitHub Release API 响应。
+  void _applyApi(Map<String, dynamic> body) {
+    latestVersion = (body['tag_name'] as String?)?.replaceFirst('v', '');
+    final List<dynamic> assets = body['assets'] as List<dynamic>? ?? <dynamic>[];
+    apkUrl = null;
+    apkSize = 0;
+    for (final a in assets) {
+      final name = (a['name'] as String).toLowerCase();
+      if (name.endsWith('.apk') && name.contains(_archPattern)) {
+        apkUrl = a['browser_download_url'] as String;
+        apkSize = a['size'] as int? ?? 0;
+        break;
+      }
+    }
+    if (apkUrl == null) throw Exception('Release 中没有 arm64 APK');
+  }
+
+  /// 解析仓库静态 version.json（字段：version / apk / size）。
+  void _applyManifest(Map<String, dynamic> body) {
+    latestVersion = (body['version'] as String?)?.replaceFirst('v', '');
+    apkUrl = body['apk'] as String?;
+    apkSize = body['size'] as int? ?? 0;
   }
 
   /// 下载 APK 到应用缓存目录，进度写入 [state]。
@@ -100,6 +136,7 @@ class UpdateService {
 
       final HttpClientRequest req =
           await HttpClient().getUrl(Uri.parse(apkUrl!));
+      req.headers.set(HttpHeaders.userAgentHeader, _userAgent);
       final HttpClientResponse res = await req.close().timeout(
             const Duration(seconds: 20),
           );

@@ -25,7 +25,10 @@
   - 启动时静默检查 GitHub 最新 Release，发现新版本在首页提示；
   - 账户页可手动「检查更新 → 下载并安装」，下载进度用 M3E 圆环展示；
   - 通过 Android `FileProvider` + `REQUEST_INSTALL_PACKAGES` 拉起系统安装器，
-    首次需授予「安装未知应用」权限（自动跳转设置页）。
+    首次需授予「安装未知应用」权限（自动跳转设置页）；
+  - **双源防限流**：主源 GitHub Release API，遇 403 限流/网络失败自动回退到仓库根目录
+    静态 `version.json`（raw 域名，无每小时 60 次的 API 限流）；请求带显式 User-Agent；
+    有单测强制校验 `version.json` 与 `pubspec.yaml` 版本一致，防止发版漏同步。
 - **演示模式**（明确标注）：无账号时可用本地示例数据体验完整交互，
   界面全程显示「演示数据」标识，绝不冒充真实邮件。
 
@@ -45,6 +48,7 @@
 ## 🗂 目录结构
 
 ```
+version.json                   # 应用内更新备用版本源（发版时需与 pubspec 同步，有单测守护）
 lib/
 ├── main.dart                  # 入口：账号恢复 → 首页 / 登录页
 ├── models/email.dart          # 邮件数据模型

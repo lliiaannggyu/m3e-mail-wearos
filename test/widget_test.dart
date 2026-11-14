@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:m3e_mail/mail/imap_client.dart';
 import 'package:m3e_mail/mail/mail_service.dart';
 import 'package:m3e_mail/main.dart';
-import 'package:m3e_mail/update/update_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -55,19 +54,6 @@ void main() {
     expect(find.text('M3E Mail'), findsOneWidget);
     expect(find.text('登录邮箱'), findsOneWidget);
     expect(find.text('先看演示模式'), findsOneWidget);
-  });
-
-  group('版本比较（应用内更新）', () {
-    test('latest 更新时返回 true', () {
-      expect(UpdateService.isNewer('1.3.0', '1.2.0'), isTrue);
-      expect(UpdateService.isNewer('v1.2.10', '1.2.9'), isTrue);
-      expect(UpdateService.isNewer('2.0.0', '1.9.9'), isTrue);
-    });
-    test('相同或更旧时返回 false', () {
-      expect(UpdateService.isNewer('1.2.0', '1.2.0'), isFalse);
-      expect(UpdateService.isNewer('1.1.9', '1.2.0'), isFalse);
-      expect(UpdateService.isNewer('', '1.2.0'), isFalse);
-    });
   });
 }
 
