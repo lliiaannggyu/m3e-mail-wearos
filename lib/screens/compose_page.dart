@@ -3,9 +3,12 @@ import 'package:material_ui/material_ui.dart';
 
 import '../mail/mail_service.dart';
 import '../models/email.dart';
+import '../widgets/curved_list.dart';
 import '../widgets/watch_layout.dart';
 
-/// 写邮件页：真实 SMTP 发送（演示模式仅本地模拟），右滑返回。
+/// 写邮件页 —— 圆形表盘布局：
+/// 顶部居中标题，表单沿圆弧滚动收放，
+/// 底部中央圆形「发送」按钮。
 class ComposePage extends StatefulWidget {
   const ComposePage({super.key, this.replyTo});
 
@@ -61,36 +64,20 @@ class _ComposePageState extends State<ComposePage> {
 
   @override
   Widget build(BuildContext context) {
-    final M3EThemeData theme = M3ETheme.of(context);
     final svc = MailService.instance;
     return WatchScreen(
       child: Column(
         children: <Widget>[
-          Row(
-            children: <Widget>[
-              M3EIconButton(
-                icon: Icon(M3EIcons.close),
-                variant: M3EIconButtonVariant.standard,
-                size: M3EIconButtonSize.sm,
-                tooltip: '关闭（也可右滑）',
-                onPressed: () => Navigator.of(context).maybePop(),
-              ),
-              const Spacer(),
-              Text(svc.isDemo ? '写邮件（演示）' : '写邮件',
-                  style: theme.typeScale.titleSmall),
-            ],
+          WatchHeader(
+            title: widget.replyTo == null ? '写邮件' : '回复邮件',
+            subtitle: svc.isDemo ? '演示模式 · 不会真实发信' : null,
           ),
-          if (svc.isDemo)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text('演示模式不会真实发信',
-                  style: TextStyle(
-                      fontSize: 11, color: theme.colorScheme.tertiary)),
-            ),
-          const SizedBox(height: 8),
           Expanded(
-            child: SingleChildScrollView(
+            child: CurvedChildScrollView(
+              baseHorizontalInset: 18,
+              center: true,
               child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
                   M3ETextField(
                     controller: _to,
@@ -119,19 +106,21 @@ class _ComposePageState extends State<ComposePage> {
                     maxLines: 6,
                   ),
                   const SizedBox(height: 14),
-                  _sending
-                      ? const M3EProgressIndicator.circular()
-                      : M3EButton(
-                          onPressed: _send,
-                          icon: Icon(M3EIcons.send, size: 16),
-                          label: const Text('发送'),
-                          style: M3EButtonStyle.filled,
-                          size: M3EButtonSize.md,
-                        ),
-                  const SizedBox(height: 16),
                 ],
               ),
             ),
+          ),
+          WatchActionBar(
+            actions: <Widget>[
+              _sending
+                  ? const M3EProgressIndicator.circular(size: 30, strokeWidth: 3)
+                  : M3EFab(
+                      icon: Icon(M3EIcons.send),
+                      tooltip: '发送',
+                      size: M3EFabSize.small,
+                      onPressed: _send,
+                    ),
+            ],
           ),
         ],
       ),

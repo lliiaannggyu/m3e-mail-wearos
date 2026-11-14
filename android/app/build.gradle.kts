@@ -65,3 +65,8 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // 应用内更新：FileProvider 把缓存目录里的 APK 暴露给系统安装器
+    implementation("androidx.core:core-ktx:1.13.1")
+}

@@ -3,11 +3,13 @@ import 'package:material_ui/material_ui.dart';
 
 import '../mail/mail_service.dart';
 import '../models/email.dart';
+import '../widgets/curved_list.dart';
 import '../widgets/watch_layout.dart';
 import '../widgets/watch_mail_row.dart';
 import 'email_detail_page.dart';
 
-/// 搜索页：实时过滤当前收件箱，右滑返回。
+/// 搜索页 —— 圆形表盘布局：
+/// 顶部窄弦区放搜索框，结果用弧形曲线列表呈现。
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
 
@@ -31,63 +33,54 @@ class _SearchPageState extends State<SearchPage> {
 
   @override
   Widget build(BuildContext context) {
-    final M3EThemeData theme = M3ETheme.of(context);
     return WatchScreen(
       child: Column(
         children: <Widget>[
-          M3ESearchBar(
-            controller: _controller,
-            hintText: '搜索发件人 / 主题',
-            onChanged: _onChanged,
-            onSubmitted: _onChanged,
-            trailing: _controller.text.isEmpty
-                ? null
-                : <Widget>[
-                    M3EIconButton(
-                      icon: Icon(M3EIcons.close),
-                      variant: M3EIconButtonVariant.standard,
-                      size: M3EIconButtonSize.xs,
-                      onPressed: () {
-                        _controller.clear();
-                        _onChanged('');
-                      },
-                    ),
-                  ],
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: _results.isEmpty
-                ? Center(
-                    child: Text(
-                      _controller.text.isEmpty ? '输入关键字搜索' : '没有匹配的邮件',
-                      style: TextStyle(
-                          fontSize: 13,
-                          color: theme.colorScheme.onSurfaceVariant),
-                      textAlign: TextAlign.center,
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: _results.length,
-                    itemBuilder: (BuildContext context, int index) {
-                      final Email email = _results[index];
-                      return WatchMailRow(
-                        email: email,
-                        onTap: () {
-                          if (email.unread) {
-                            MailService.instance.markRead(email.id);
-                          }
-                          Navigator.of(context).push(MaterialPageRoute<void>(
-                            builder: (_) =>
-                                EmailDetailPage(emailId: email.id),
-                          ));
+          WatchHeader(title: '搜索'),
+          Padding(
+            padding:
+                EdgeInsets.symmetric(horizontal: WatchInsets.horizontal(context)),
+            child: M3ESearchBar(
+              controller: _controller,
+              hintText: '发件人 / 主题 / 正文',
+              onChanged: _onChanged,
+              onSubmitted: _onChanged,
+              trailing: _controller.text.isEmpty
+                  ? null
+                  : <Widget>[
+                      M3EIconButton(
+                        icon: Icon(M3EIcons.close),
+                        variant: M3EIconButtonVariant.standard,
+                        size: M3EIconButtonSize.xs,
+                        onPressed: () {
+                          _controller.clear();
+                          _onChanged('');
                         },
-                        onToggleStar: () =>
-                            MailService.instance.toggleStar(email.id),
-                        onArchive: () =>
-                            MailService.instance.archive(email.id),
-                      );
-                    },
-                  ),
+                      ),
+                    ],
+            ),
+          ),
+          Expanded(
+            child: CurvedList(
+              itemCount: _results.length,
+              emptyText: _controller.text.isEmpty ? '输入关键字搜索' : '没有匹配的邮件',
+              itemBuilder: (BuildContext context, int index) {
+                final Email email = _results[index];
+                return WatchMailRow(
+                  email: email,
+                  onTap: () {
+                    if (email.unread) {
+                      MailService.instance.markRead(email.id);
+                    }
+                    Navigator.of(context).push(MaterialPageRoute<void>(
+                      builder: (_) => EmailDetailPage(emailId: email.id),
+                    ));
+                  },
+                  onToggleStar: () => setState(
+                      () => MailService.instance.toggleStar(email.id)),
+                );
+              },
+            ),
           ),
         ],
       ),
